@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Image Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .upload-box {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      width: 400px;
+      margin: 0 auto 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .upload-box input {
+      width: 100%;
+      padding: 8px;
+      margin: 8px 0;
+      border-radius: 5px;
+    }
+
+    .upload-box button {
+      width: 100%;
+      padding: 10px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    .upload-box button:hover {
+      background: #0056b3;
+    }
+
+    #preview {
+      width: 100%;
+      margin-top: 10px;
+      display: none;
+      border-radius: 5px;
+    }
+
+    #progressBar {
+      width: 100%;
+      height: 10px;
+      background: #ddd;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 10px;
+      display: none;
+    }
+
+    #progressBar div {
+      height: 10px;
+      width: 0%;
+      background: #28a745;
+    }
+
+    .gallery {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    .image-card {
+      width: 180px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      overflow: hidden;
+      text-align: center;
+      position: relative;
+    }
+
+    .image-card img {
+      width: 100%;
+      height: 150px;
+      -o-object-fit: cover;
+         object-fit: cover;
+      transition: 0.3s;
+    }
+
+    .image-card img:hover {
+      transform: scale(1.07);
+    }
+
+    .delete-btn {
+      background: red;
+      color: white;
+      border: none;
+      width: 100%;
+      padding: 8px;
+      cursor: pointer;
+    }
+
+  </style>
+</head>
+<body>
+
+<h1>Advanced Image Viewer</h1>
+
+<div class="upload-box">
+  <input type="text" id="imgName" placeholder="Image Name" required>
+  <input type="file" id="imgFile" accept="image/*" required>
+
+  <img id="preview">
+
+  <div id="progressBar">
+    <div></div>
+  </div>
+
+  <button id="uploadBtn">Upload Image</button>
+</div>
+
+<div class="gallery" id="gallery"></div>
+
+<script>
+  const apiBase = "http://localhost:5000/api/images";
+
+  // Live preview
+  document.getElementById("imgFile").addEventListener("change", function() {
+    const file = this.files[0];
+    const preview = document.getElementById("preview");
+
+    if (file) {
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+    }
+  });
+
+  // Load images
+  async function loadImages() {
+    const res = await fetch(apiBase);
+    const data = await res.json();
+
+    const gallery = document.getElementById("gallery");
+    gallery.innerHTML = "";
+
+    data.forEach(img => {
+      const card = document.createElement("div");
+      card.className = "image-card";
+
+      card.innerHTML = `
+        <img src="${img.url}" alt="${img.name}">
+        <p>${img.name}</p>
+        <button class="delete-btn" onclick="deleteImage('${img._id}')">Delete</button>
+      `;
+
+      gallery.appendChild(card);
+    });
+  }
+
+  // Upload handler
+  document.getElementById("uploadBtn").onclick = async function () {
+    const name = document.getElementById("imgName").value;
+    const file = document.getElementById("imgFile").files[0];
+
+    if (!name || !file) {
+      alert("Please enter name and select file.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("image", file);
+
+    const progressBar = document.getElementById("progressBar");
+    const progressFill = progressBar.querySelector("div");
+
+    progressBar.style.display = "block";
+    progressFill.style.width = "0%";
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", apiBase);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const percent = (e.loaded / e.total) * 100;
+        progressFill.style.width = percent + "%";
+      }
+    };
+
+    xhr.onload = function () {
+      progressFill.style.width = "100%";
+      setTimeout(() => progressBar.style.display = "none", 500);
+      loadImages();
+    };
+
+    xhr.send(formData);
+  };
+
+  // Delete image
+  async function deleteImage(id) {
+    await fetch(`${apiBase}/${id}`, { method: "DELETE" });
+    loadImages();
+  }
+
+  loadImages();
+</script>
+
+</body>
+</html>
